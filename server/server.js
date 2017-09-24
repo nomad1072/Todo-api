@@ -1,3 +1,14 @@
+var env = process.env.NODE_ENV || 'development';
+console.log('env **********', env);
+
+if (env === 'development') {
+    process.env.PORT = 3000;
+    process.env.MONGODB_URI = 'mongodb://nomad1072:qwerty@ds147964.mlab.com:47964/todo-api';
+} else if (env === 'test') {
+    process.env.PORT = 3000;
+    process.env.MONGODB_URI = 'mongodb://localhost:27017/TodoApp';
+}
+
 const _ = require('lodash');
 
 var {ObjectID} = require('mongodb');
