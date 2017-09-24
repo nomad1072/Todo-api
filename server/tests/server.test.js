@@ -94,7 +94,10 @@ describe('DELETE todos/id', () => {
                     return done(err);
                 }
 
-                Todo.findById()
+                Todo.findById(hexId).then((todo) => {
+                    expect(todo).toNotExist();
+                    done();
+                }).catch((e) => done(e));
             });
     });
 
