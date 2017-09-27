@@ -1,13 +1,4 @@
-var env = process.env.NODE_ENV || 'development';
-console.log('env **********', env);
-
-if (env === 'development') {
-    process.env.PORT = 3000;
-    process.env.MONGODB_URI = 'mongodb://nomad1072:qwerty@ds147964.mlab.com:47964/todo-api';
-} else if (env === 'test') {
-    process.env.PORT = 3000;
-    process.env.MONGODB_URI = 'mongodb://localhost:27017/TodoApp';
-}
+require('./config/config');
 
 const _ = require('lodash');
 
@@ -30,10 +21,11 @@ app.use(bodyParser.json());
 // To create a resource. (Resource creation)
 // Send a json object with text property to server
 // Server is going to send complete model to client
-app.post('/todos', (req, res) => {
+app.post('/todos', authenticate, (req, res) => {
     //console.log(req.body);
     var todo = new Todo({
-        text: req.body.text
+        text: req.body.text,
+        _creator: req.user._id
     });
 
     todo.save().then((doc) => {
@@ -64,8 +56,10 @@ app.get('/users/me', authenticate, (req, res) => {
 });
 
 
-app.get('/todos', (req, res) => {
-    Todo.find().then((todos) => {
+app.get('/todos', authenticate, (req, res) => {
+    Todo.find({
+        _creator: req.user._id
+    }).then((todos) => {
         res.send({todos});
     }, (err) => {
         res.status(400).send(err);
@@ -75,7 +69,7 @@ app.get('/todos', (req, res) => {
 // Fetch individual todos Format
 // GET todos/todoid
 
-app.get('/todos/:id', (req, res) => {
+app.get('/todos/:id', authenticate, (req, res) => {
     var id = req.params.id;
 
     // Valid id using isValid
@@ -86,24 +80,20 @@ app.get('/todos/:id', (req, res) => {
         res.status(404).send();
     }
 
-    // findById
-        // success
-            // if todo
-            // if no todo
-        // error
-            // 400 - send empty body back
-    Todo.findById(id).then((todo) => {
+    Todo.findOne({
+        _id: id,
+        _creator: req.user._id
+    }).then((todo) => {
         if(!todo) {
             return res.status(404).send();
         }
-        res.send(JSON.stringify(todo, undefined, 2));
+        res.send({todo});
     }, (err) => {
         res.status(400).send();
     }).catch((err) => {
         res.status(404).send();
     });
 
-    //res.send(req.params);
 });
 
 // Delete route
@@ -115,7 +105,10 @@ app.delete('/todos/:id', (req, res) => {
          return res.status(404).send();
      }
 
-     Todo.findByIdAndRemove(id).then((todo) => {
+     Todo.findByOneAndRemove({
+         _id: id,
+         _creator: req.user._id
+     }).then((todo) => {
         if(!todo) {
             return res.status(404).send();
         }
@@ -156,11 +149,22 @@ app.patch('/todos/:id', (req, res) => {
         body.completedAt = null;
     }
 
-    Todo.findByIdAndUpdate(id, {$set: body}, {new: true}).then((todo) => {
+    Todo.findByOneAndUpdate({
+        _id: id,
+        _creator: req.user._id
+    }, {$set: body}, {new: true}).then((todo) => {
         if(!todo) {
             return res.status(404).send();
         }
         res.status(200).send(todo);
+    }).catch((err) => {
+        res.status(400).send();
+    });
+});
+
+app.delete('/users/me/token', authenticate, (req, res) => {
+    req.user.removeToken(req.token).then(() => {
+        res.status(200).send();
     }).catch((err) => {
         res.status(400).send();
     });
